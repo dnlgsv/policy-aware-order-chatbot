@@ -36,6 +36,7 @@ This project implements a generative chatbot that uses a Large Language Model (L
 ├── pyproject.toml          # Project metadata and dependencies for uv
 ├── README.md               # This file
 ├── Solution_Design.md      # Detailed explanation of the solution architecture( maybe should be merged into Report.md?)
+├── streamlit_app.py        # Streamlit web UI for easy interaction
 ├── test_chatbot.py         # Unit/integration tests for the chatbot
 ├── test_system.py          # System tests
 └── uv.lock                 # Lock file for reproducible builds with uv
@@ -83,13 +84,21 @@ This project implements a generative chatbot that uses a Large Language Model (L
     ```
     This script provides a command-line interface to interact with the chatbot.
 
+3.  **Run the Streamlit Web UI (Recommended):**
+    ```bash
+    uv run streamlit run streamlit_app.py
+    ```
+    This provides a user-friendly web interface accessible at `http://localhost:8501`.
+
 ### Option 2: Docker (Recommended)
 
 1.  **Build and run with Docker Compose:**
     ```bash
     docker-compose up --build
     ```
-    The API will be accessible at `http://localhost:8000`.
+    This will start both:
+    - **API Server**: `http://localhost:8000`
+    - **Streamlit UI**: `http://localhost:8501`
 
 2.  **Run in detached mode:**
     ```bash
@@ -98,7 +107,7 @@ This project implements a generative chatbot that uses a Large Language Model (L
 
 ### Docker Commands
 
-- **View logs:** `docker-compose logs -f chatbot`
+- **View logs:** `docker-compose logs -f chatbot` or `docker-compose logs -f streamlit`
 - **Stop services:** `docker-compose down`
 - **Rebuild:** `docker-compose build --no-cache`
 - **Run tests in container:** `docker-compose exec chatbot uv run python -m pytest`
@@ -124,6 +133,7 @@ To assess the chatbot's performance:
 -   **LangChain**: LLM framework for building context-aware applications.
 -   **LangGraph**: For creating agent applications.
 -   **OpenAI GPT models**: (e.g., `GPT-4.1 mini`) For NLU, response generation, and LLM-as-a-judge evaluation.
+-   **Streamlit**: For the web-based user interface.
 -   **uv**: For Python packaging and virtual environment management.
 -   **Scikit-learn, Pandas, Matplotlib, Seaborn**: For metrics calculation and results visualization in the evaluation phase.
 

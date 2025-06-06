@@ -19,3 +19,21 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - /app/.venv
+    restart: unless-stopped
+    depends_on:
+      - chatbot
+    command: ["uv", "run", "streamlit", "run", "streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
