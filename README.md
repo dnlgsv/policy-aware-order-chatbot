@@ -69,6 +69,8 @@ This project implements a generative chatbot that uses a Large Language Model (L
 
 ## Running the Application
 
+### Option 1: Local Development (Direct)
+
 1.  **Start the FastAPI server:**
     ```bash
     uv run uvicorn main:app --reload --port 8000
@@ -80,6 +82,26 @@ This project implements a generative chatbot that uses a Large Language Model (L
     uv run python demo.py
     ```
     This script provides a command-line interface to interact with the chatbot.
+
+### Option 2: Docker (Recommended)
+
+1.  **Build and run with Docker Compose:**
+    ```bash
+    docker-compose up --build
+    ```
+    The API will be accessible at `http://localhost:8000`.
+
+2.  **Run in detached mode:**
+    ```bash
+    docker-compose up -d
+    ```
+
+### Docker Commands
+
+- **View logs:** `docker-compose logs -f chatbot`
+- **Stop services:** `docker-compose down`
+- **Rebuild:** `docker-compose build --no-cache`
+- **Run tests in container:** `docker-compose exec chatbot uv run python -m pytest`
 
 ## Running the Evaluation
 
