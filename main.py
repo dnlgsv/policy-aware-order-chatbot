@@ -67,6 +67,7 @@ async def root():
             "orders": "/orders/{order_id}",
             "cancel": "/orders/{order_id}/cancel",
             "tracking": "/orders/{order_id}/tracking",
+            "health": "/health",
         },
     }
 
@@ -191,12 +192,31 @@ async def get_policy_info(policy_type: str):
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
-    return {
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "service": "policy-aware-order-chatbot",
-    }
+    """Health check endpoint for container monitoring."""
+    try:
+        orders_count = len(order_service.list_all_orders())
+
+        return {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "service": "policy-aware-order-chatbot",
+            "version": "1.0.0",
+            "checks": {
+                "order_service": "ok",
+                "orders_loaded": orders_count,
+                "policy_engine": "ok",
+            },
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "unhealthy",
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e),
+            },
+        ) from e
 
 
 def main():
