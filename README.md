@@ -121,6 +121,27 @@ The following diagram illustrates the agent graph structure, showing the flow of
 - **Rebuild:** `docker-compose build --no-cache`
 - **Run tests in container:** `docker-compose exec chatbot uv run python -m pytest`
 
+## Running Tests
+
+The project includes comprehensive tests to verify system functionality:
+
+1.  **Unit and Integration Tests:**
+    ```bash
+    uv run python -m pytest test_chatbot.py test_system.py -v
+    ```
+
+2.  **API Tests (requires running server):**
+
+    First, start the FastAPI server:
+    ```bash
+    uv run uvicorn main:app --reload --port 8000
+    ```
+
+    Then in a separate terminal, run the API tests:
+    ```bash
+    uv run python test_api.py
+    ```
+
 ## Running the Evaluation
 
 To assess the chatbot's performance:
