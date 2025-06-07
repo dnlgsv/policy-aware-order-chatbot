@@ -121,6 +121,8 @@ class CancellationAgent(ChatbotAgent):
             return {
                 "response": "I'd be happy to help you cancel your order. Could you please provide your order ID?",
                 "requires_followup": True,
+                "policy_decision": None,
+                "requires_approval": False,
             }
 
         # get order information
@@ -129,6 +131,10 @@ class CancellationAgent(ChatbotAgent):
             return {
                 "response": f"I couldn't find an order with ID {state.order_id}. Please check the order ID and try again.",
                 "requires_followup": False,
+                "policy_decision": PolicyDecision(
+                    allowed=False, reason=f"Order {state.order_id} not found."
+                ).model_dump(),
+                "requires_approval": False,
             }
         # Check cancellation policy
         policy_decision = self.policy_engine.evaluate_cancellation(order.model_dump())
@@ -138,14 +144,16 @@ class CancellationAgent(ChatbotAgent):
                 "response": f"I'm sorry, but this order cannot be cancelled. {policy_decision.reason}",
                 "requires_followup": False,
                 "policy_decision": policy_decision.model_dump(),
+                "requires_approval": policy_decision.requires_approval,
             }
 
         if policy_decision.requires_approval:
             return {
-                "response": f"Your cancellation request has been noted. {policy_decision.reason}. A manager will review your request within 24 hours. You'll receive an email confirmation once processed.",
+                "response": f"Your cancellation request for order {state.order_id} has been noted. {policy_decision.reason}. A manager will review your request, typically within 24 hours. You'll receive an email confirmation once it's processed.",
                 "requires_followup": False,
                 "requires_human_handoff": True,
                 "policy_decision": policy_decision.model_dump(),
+                "requires_approval": True,
             }
 
         # process cancellation
@@ -158,11 +166,14 @@ class CancellationAgent(ChatbotAgent):
                 "response": f"Your order {state.order_id} has been successfully cancelled. You can expect your refund within {refund_timeline}. You'll receive a confirmation email shortly.",
                 "requires_followup": False,
                 "policy_decision": policy_decision.model_dump(),
+                "requires_approval": False,
             }
         else:
             return {
-                "response": "I encountered an error while processing your cancellation. Please try again or contact customer support.",
+                "response": "I encountered an error while processing your cancellation for order {state.order_id}. Please try again or contact customer support.",
                 "requires_followup": False,
+                "policy_decision": policy_decision.model_dump(),
+                "requires_approval": False,
             }
 
     def generate_response(
@@ -207,28 +218,33 @@ class TrackingAgent(ChatbotAgent):
             return {
                 "response": "I can help you track your order. Please provide your order ID.",
                 "requires_followup": True,
+                "policy_decision": None,
             }
 
-        # Check tracking policy
+        # first check if order exists
+        tracking_info = order_service.get_tracking_info(state.order_id)
+        if not tracking_info:
+            policy_decision = PolicyDecision(allowed=False, reason="Order not found")
+            return {
+                "response": f"I couldn't find tracking information for order {state.order_id}. Please verify your order ID.",
+                "requires_followup": False,
+                "policy_decision": policy_decision.model_dump(),
+            }
+
+        # check tracking policy for existing order
         policy_decision = self.policy_engine.evaluate_tracking(state.order_id)
         if not policy_decision.allowed:
             return {
                 "response": f"I'm unable to provide tracking information. {policy_decision.reason}",
                 "requires_followup": False,
-            }
-
-        # Get tracking information
-        tracking_info = order_service.get_tracking_info(state.order_id)
-        if not tracking_info:
-            return {
-                "response": f"I couldn't find tracking information for order {state.order_id}. Please verify your order ID.",
-                "requires_followup": False,
+                "policy_decision": policy_decision.model_dump(),
             }
 
         return {
             "response": "Here's your order tracking information:",
             "tracking_info": tracking_info,
             "requires_followup": False,
+            "policy_decision": policy_decision.model_dump(),
         }
 
     def generate_response(
@@ -351,7 +367,7 @@ class PolicyAwareChatbot:
 
         result = self.cancellation_agent.process_cancellation_request(chat_state)
 
-        if result.get("requires_followup"):
+        if result.get("requires_followup") or result.get("requires_approval"):
             response = result["response"]
         else:
             response = self.cancellation_agent.generate_response(chat_state, result)
@@ -361,6 +377,9 @@ class PolicyAwareChatbot:
         if result.get("requires_human_handoff"):
             state["requires_human_handoff"] = True
 
+        if result.get("policy_decision"):
+            state["policy_decision"] = result.get("policy_decision")
+
         return state
 
     def _handle_tracking(self, state: dict) -> dict:
@@ -369,12 +388,15 @@ class PolicyAwareChatbot:
 
         result = self.tracking_agent.process_tracking_request(chat_state)
 
-        if result.get("requires_followup"):
+        if result.get("requires_followup") or "tracking_info" not in result:
             response = result["response"]
         else:
             response = self.tracking_agent.generate_response(chat_state, result)
 
         state["messages"].append({"role": "assistant", "content": response})
+
+        if result.get("policy_decision"):
+            state["policy_decision"] = result.get("policy_decision")
 
         return state
 
@@ -382,7 +404,7 @@ class PolicyAwareChatbot:
         """Handle general inquiries."""
         current_message = state["messages"][-1]["content"]
 
-        # Generate a helpful general response
+        # generate a helpful general response
         prompt = ChatPromptTemplate.from_template("""
         You are a helpful customer service agent. The user has made a general inquiry.
 
@@ -401,6 +423,12 @@ class PolicyAwareChatbot:
         response = chain.invoke({"message": current_message})
 
         state["messages"].append({"role": "assistant", "content": response.content})
+
+        policy_decision = PolicyDecision(
+            allowed=True,
+            reason="General inquiry handled - no specific policy restrictions apply",
+        )
+        state["policy_decision"] = policy_decision
 
         return state
 
@@ -425,13 +453,12 @@ class PolicyAwareChatbot:
         }
 
         # run the graph
-        final_state = self.graph.invoke(initial_state)
-
-        # return the response
+        final_state = self.graph.invoke(initial_state)  # return the response
         return {
             "response": final_state["messages"][-1]["content"],
             "conversation_history": final_state["messages"],
             "intent": final_state.get("current_intent"),
             "extracted_entities": final_state.get("extracted_entities", {}),
+            "policy_decision": final_state.get("policy_decision"),
             "requires_human_handoff": final_state.get("requires_human_handoff", False),
         }
