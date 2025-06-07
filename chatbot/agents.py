@@ -141,14 +141,6 @@ class CancellationAgent(ChatbotAgent):
         # Check cancellation policy
         policy_decision = self.policy_engine.evaluate_cancellation(order.model_dump())
 
-        if not policy_decision.allowed:
-            return {
-                "response": f"I'm sorry, but this order cannot be cancelled. {policy_decision.reason}",
-                "requires_followup": False,
-                "policy_decision": policy_decision.model_dump(),
-                "requires_approval": policy_decision.requires_approval,
-            }
-
         if policy_decision.requires_approval:
             return {
                 "response": f"Your cancellation request for order {state.order_id} has been noted. {policy_decision.reason}. A manager will review your request, typically within 24 hours. You'll receive an email confirmation once it's processed.",
@@ -156,6 +148,14 @@ class CancellationAgent(ChatbotAgent):
                 "requires_human_handoff": True,
                 "policy_decision": policy_decision.model_dump(),
                 "requires_approval": True,
+            }
+
+        if not policy_decision.allowed:
+            return {
+                "response": f"I'm sorry, but this order cannot be cancelled. {policy_decision.reason}",
+                "requires_followup": False,
+                "policy_decision": policy_decision.model_dump(),
+                "requires_approval": policy_decision.requires_approval,
             }
 
         # process cancellation
@@ -281,13 +281,16 @@ class TrackingAgent(ChatbotAgent):
 
 
 class PolicyAwareChatbot:
-    """Main chatbot orchestrator using LangGraph."""
+    """The main chatbot class that orchestrates all agents."""
 
     def __init__(self, model_name: str = "gpt-4.1-mini-2025-04-14"):
         self.router = RouterAgent(model_name)
         self.cancellation_agent = CancellationAgent(model_name)
         self.tracking_agent = TrackingAgent(model_name)
-        self.conversation_states = {}
+        self.llm = ChatOpenAI(
+            model=model_name, temperature=0.1, api_key=os.getenv("OPENAI_API_KEY")
+        )
+        self.conversation_states: dict[str, ChatState] = {}
 
         # conversation graph
         self.graph = self._build_graph()
@@ -408,7 +411,6 @@ class PolicyAwareChatbot:
         # generate a helpful general response
         prompt = ChatPromptTemplate.from_template("""
         You are a helpful customer service agent. The user has made a general inquiry.
-        Do not start with a greeting if there is a conversation history.
 
         Provide a helpful response and guide them to specific services if appropriate.
         When asked about cancellation policy, explain that orders can be cancelled within 10 days of purchase.

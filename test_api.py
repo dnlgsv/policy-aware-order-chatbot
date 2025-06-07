@@ -13,7 +13,7 @@ def test_health():
     response = requests.get(f"{BASE_URL}/health", timeout=10)
     print(f"Status: {response.status_code}")
     print(f"Response: {json.dumps(response.json(), indent=2)}")
-    return response.status_code == 200
+    assert response.status_code == 200
 
 
 def test_chat():
@@ -32,7 +32,7 @@ def test_chat():
     print(f"Status: {response.status_code}")
     print(f"Response: {json.dumps(response.json(), indent=2)}")
 
-    return response.status_code == 200
+    assert response.status_code == 200
 
 
 def test_chat_without_order():
@@ -51,7 +51,7 @@ def test_chat_without_order():
     print(f"Status: {response.status_code}")
     print(f"Response: {json.dumps(response.json(), indent=2)}")
 
-    return response.status_code == 200
+    assert response.status_code == 200
 
 
 def test_orders():
@@ -62,7 +62,7 @@ def test_orders():
     print(f"Status: {response.status_code}")
     print(f"Response: {json.dumps(response.json(), indent=2)}")
 
-    return response.status_code == 200
+    assert response.status_code == 200
 
 
 if __name__ == "__main__":

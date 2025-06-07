@@ -74,6 +74,11 @@ class OrderService:
                 "days_ago": 30,
                 "status": OrderStatus.DELIVERED.value,
             },
+            {
+                "id": "ORD-2025-1006",
+                "days_ago": 4,
+                "status": OrderStatus.SHIPPED.value,
+            },
         ]
 
         for i, config in enumerate(test_order_configs):

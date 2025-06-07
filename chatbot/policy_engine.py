@@ -50,6 +50,14 @@ class OrderPolicy:
         if order_status == OrderStatus.CANCELLED:
             return PolicyDecision(allowed=False, reason="Order is already cancelled")
 
+        if order_status in cls.MANAGER_APPROVAL_STATUSES:
+            return PolicyDecision(
+                allowed=True,
+                reason="Cancellation requires manager approval due to shipping status",
+                requires_approval=True,
+                approval_type="manager",
+            )
+
         if order_status == OrderStatus.DELIVERED:
             return PolicyDecision(
                 allowed=False,
@@ -60,14 +68,6 @@ class OrderPolicy:
             return PolicyDecision(
                 allowed=False,
                 reason=f"Orders can only be cancelled within {cls.CANCELLATION_WINDOW_DAYS} days of placement. This order was placed {days_since_order} days ago.",
-            )
-
-        if order_status in cls.MANAGER_APPROVAL_STATUSES:
-            return PolicyDecision(
-                allowed=True,
-                reason="Cancellation requires manager approval due to shipping status",
-                requires_approval=True,
-                approval_type="manager",
             )
 
         # Else: order can be cancelled

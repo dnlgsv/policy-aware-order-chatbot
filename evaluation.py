@@ -208,10 +208,13 @@ class ChatbotEvaluator:
         """Evaluate a single test case."""
         start_time = datetime.now()
         raw_chatbot_result = {}
+        self.chatbot = PolicyAwareChatbot()  # Re-initialize chatbot for isolation
 
         try:
             # get chatbot response
-            raw_chatbot_result = self.chatbot.chat(test_case.user_message)
+            raw_chatbot_result = self.chatbot.chat(
+                test_case.user_message, session_id=f"eval-{test_case.id}"
+            )
 
             execution_time = (datetime.now() - start_time).total_seconds()
 

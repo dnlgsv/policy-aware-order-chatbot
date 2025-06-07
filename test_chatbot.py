@@ -224,7 +224,7 @@ class TestIntegration:
             mock_llm.invoke.return_value = Mock(content="Order cancelled successfully")
 
             # Test the chat method
-            result = self.chatbot.chat("Cancel order ORD-2025-1000")
+            result = self.chatbot.chat("Cancel order ORD-2025-1000", "test_session")
 
             assert "response" in result
             assert "conversation_history" in result
@@ -240,7 +240,7 @@ class TestIntegration:
                 content="Here's your tracking information"
             )
 
-            result = self.chatbot.chat("Track order ORD-2025-1000")
+            result = self.chatbot.chat("Track order ORD-2025-1000", "test_session")
 
             assert "response" in result
             assert "conversation_history" in result
