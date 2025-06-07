@@ -1,0 +1,306 @@
+{
+  "metrics": {
+    "total_test_cases": 11,
+    "successful_cases": 11,
+    "intent_accuracy": 0.9090909090909091,
+    "intent_precision_weighted": 1.0,
+    "intent_recall_weighted": 0.9090909090909091,
+    "intent_f1_weighted": 0.9393939393939393,
+    "intent_classification_report": "                    precision    recall  f1-score   support\n\n         complaint       1.00      1.00      1.00         1\n   general_inquiry       1.00      0.50      0.67         2\norder_cancellation       1.00      1.00      1.00         5\n    order_tracking       1.00      1.00      1.00         3\n           unknown       0.00      0.00      0.00         0\n\n          accuracy                           0.91        11\n         macro avg       0.80      0.70      0.73        11\n      weighted avg       1.00      0.91      0.94        11\n",
+    "entity_extraction_metrics": {
+      "average_precision": 1.0,
+      "average_recall": 1.0,
+      "average_f1": 1.0,
+      "overall_precision": 1.0,
+      "overall_recall": 1.0,
+      "overall_f1": 1.0
+    },
+    "policy_compliance_rate": 1.0,
+    "average_response_quality": 4.181818181818182,
+    "average_execution_time": 3.9231720909090915,
+    "error_rate": 0.0
+  },
+  "report": "\n# Chatbot Evaluation Report\nGenerated: 2025-06-07T19:42:26.335445\n\n## Summary Metrics\n- Total Test Cases: 11\n- Successful Cases: 11\n- Intent Classification Accuracy: 90.91%\n- Intent Precision (Weighted Avg): 1.00\n- Intent Recall (Weighted Avg): 0.91\n- Intent F1-score (Weighted Avg): 0.94\n- Entity Extraction F1 (Overall): 1.00\n  - Entity Precision (Overall): 1.00\n  - Entity Recall (Overall): 1.00\n- Policy Compliance Rate: 100.00%\n- Average Response Quality: 4.18/5.0\n- Average Execution Time: 3.923s\n- Error Rate: 0.00%\n\n## Intent Classification Detailed Report\n```\n                    precision    recall  f1-score   support\n\n         complaint       1.00      1.00      1.00         1\n   general_inquiry       1.00      0.50      0.67         2\norder_cancellation       1.00      1.00      1.00         5\n    order_tracking       1.00      1.00      1.00         3\n           unknown       0.00      0.00      0.00         0\n\n          accuracy                           0.91        11\n         macro avg       0.80      0.70      0.73        11\n      weighted avg       1.00      0.91      0.94        11\n\n```\n\n## Key Insights\n\n### Strengths\n- Strong intent classification performance\n- Excellent policy adherence\n- High-quality conversational responses\n\n### Areas for Improvement\n",
+  "results": [
+    {
+      "test_case_id": "cancel_01",
+      "predicted_intent": "order_cancellation",
+      "extracted_entities": {
+        "order_id": "ORD-2025-1000"
+      },
+      "entity_metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "correct": 1,
+        "total_expected": 1,
+        "total_predicted": 1
+      },
+      "policy_compliance": true,
+      "response_quality_score": 4.0,
+      "execution_time": 5.841486,
+      "error": null,
+      "policy_decision_details": {
+        "allowed": true,
+        "reason": "Order is eligible for cancellation",
+        "requires_approval": false,
+        "approval_type": null
+      },
+      "actual_response": "Your order ORD-2025-1000 has been successfully cancelled. You\u2019ll receive a confirmation email shortly. For details about your refund timeline, please contact customer service directly. If you have any other questions, feel free to reach out!"
+    },
+    {
+      "test_case_id": "cancel_02",
+      "predicted_intent": "order_cancellation",
+      "extracted_entities": {
+        "order_id": "ORD-2025-1001"
+      },
+      "entity_metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "correct": 1,
+        "total_expected": 1,
+        "total_predicted": 1
+      },
+      "policy_compliance": true,
+      "response_quality_score": 4.0,
+      "execution_time": 2.861755,
+      "error": null,
+      "policy_decision_details": {
+        "allowed": true,
+        "reason": "Order is eligible for cancellation",
+        "requires_approval": false,
+        "approval_type": null
+      },
+      "actual_response": "Your order ORD-2025-1001 has been successfully cancelled. You\u2019ll receive a confirmation email shortly. For details about your refund timeline, please contact customer service directly. If you have any other questions or need further assistance, feel free to reach out!"
+    },
+    {
+      "test_case_id": "cancel_03",
+      "predicted_intent": "order_cancellation",
+      "extracted_entities": {
+        "order_id": "ORD-2025-1005"
+      },
+      "entity_metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "correct": 1,
+        "total_expected": 1,
+        "total_predicted": 1
+      },
+      "policy_compliance": true,
+      "response_quality_score": 4.0,
+      "execution_time": 3.161853,
+      "error": null,
+      "policy_decision_details": {
+        "allowed": false,
+        "reason": "Delivered orders cannot be cancelled. Please contact support for refund options.",
+        "requires_approval": false,
+        "approval_type": null
+      },
+      "actual_response": "Since your order has already been delivered, it can't be cancelled at this stage. However, if you're looking for a refund or have any issues with the order, please reach out to our support team\u2014they'll be happy to help you explore your options. Let me know if you need their contact details!"
+    },
+    {
+      "test_case_id": "cancel_04",
+      "predicted_intent": "order_cancellation",
+      "extracted_entities": {
+        "order_id": "ORD-2025-1006"
+      },
+      "entity_metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "correct": 1,
+        "total_expected": 1,
+        "total_predicted": 1
+      },
+      "policy_compliance": true,
+      "response_quality_score": 4.0,
+      "execution_time": 1.492751,
+      "error": null,
+      "policy_decision_details": {
+        "allowed": true,
+        "reason": "Cancellation requires manager approval due to shipping status",
+        "requires_approval": true,
+        "approval_type": "manager"
+      },
+      "actual_response": "Your cancellation request for order ORD-2025-1006 has been noted. Cancellation requires manager approval due to shipping status. A manager will review your request, typically within 24 hours. You'll receive an email confirmation once it's processed."
+    },
+    {
+      "test_case_id": "track_01",
+      "predicted_intent": "order_tracking",
+      "extracted_entities": {
+        "order_id": "ORD-2025-1000"
+      },
+      "entity_metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "correct": 1,
+        "total_expected": 1,
+        "total_predicted": 1
+      },
+      "policy_compliance": true,
+      "response_quality_score": 2.0,
+      "execution_time": 2.269941,
+      "error": null,
+      "policy_decision_details": {
+        "allowed": true,
+        "reason": "Tracking information is available",
+        "requires_approval": false,
+        "approval_type": null
+      },
+      "actual_response": "Your order ORD-2025-1000 has been cancelled and is currently at the Fulfillment Center. Since the order was cancelled, there are no recent tracking updates or an estimated delivery date to provide. If you have any questions or need assistance with a new order, feel free to ask!"
+    },
+    {
+      "test_case_id": "track_02",
+      "predicted_intent": "order_tracking",
+      "extracted_entities": {
+        "order_id": "ORD-2025-1002"
+      },
+      "entity_metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "correct": 1,
+        "total_expected": 1,
+        "total_predicted": 1
+      },
+      "policy_compliance": true,
+      "response_quality_score": 5.0,
+      "execution_time": 2.929968,
+      "error": null,
+      "policy_decision_details": {
+        "allowed": true,
+        "reason": "Tracking information is available",
+        "requires_approval": false,
+        "approval_type": null
+      },
+      "actual_response": "Your order ORD-2025-1002 has been shipped and is currently in transit. It was last processed at the Berlin Distribution Center. You can expect your delivery by June 4, 2025. Recently, your order was confirmed at the Fulfillment Center on May 30, and then shipped from Berlin on May 31. Let me know if you need any more details!"
+    },
+    {
+      "test_case_id": "track_03",
+      "predicted_intent": "order_tracking",
+      "extracted_entities": {
+        "order_id": "ORD-2025-9999"
+      },
+      "entity_metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "correct": 1,
+        "total_expected": 1,
+        "total_predicted": 1
+      },
+      "policy_compliance": true,
+      "response_quality_score": 4.0,
+      "execution_time": 1.409063,
+      "error": null,
+      "policy_decision_details": {
+        "allowed": false,
+        "reason": "Order not found",
+        "requires_approval": false,
+        "approval_type": null
+      },
+      "actual_response": "I couldn't find tracking information for order ORD-2025-9999. Please verify your order ID."
+    },
+    {
+      "test_case_id": "general_01",
+      "predicted_intent": "general_inquiry",
+      "extracted_entities": {},
+      "entity_metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "correct": 0,
+        "total_expected": 0,
+        "total_predicted": 0
+      },
+      "policy_compliance": true,
+      "response_quality_score": 4.0,
+      "execution_time": 2.527209,
+      "error": null,
+      "policy_decision_details": {
+        "allowed": true,
+        "reason": "General inquiry handled - no specific policy restrictions apply",
+        "requires_approval": false,
+        "approval_type": null
+      },
+      "actual_response": "Our cancellation policy allows you to cancel orders within 10 days of purchase. If you'd like to proceed with canceling an order or need assistance, please let me know, and I can help you with the order cancellation process."
+    },
+    {
+      "test_case_id": "general_02",
+      "predicted_intent": "unknown",
+      "extracted_entities": {},
+      "entity_metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "correct": 0,
+        "total_expected": 0,
+        "total_predicted": 0
+      },
+      "policy_compliance": true,
+      "response_quality_score": 5.0,
+      "execution_time": 16.252032,
+      "error": null,
+      "policy_decision_details": {
+        "allowed": true,
+        "reason": "General inquiry handled - no specific policy restrictions apply",
+        "requires_approval": false,
+        "approval_type": null
+      },
+      "actual_response": "Hello! I'd be happy to help with your order. Could you please let me know if you need assistance with tracking your order, cancelling it, or have questions about our policies?"
+    },
+    {
+      "test_case_id": "edge_01",
+      "predicted_intent": "order_cancellation",
+      "extracted_entities": {
+        "order_id": "ABC123"
+      },
+      "entity_metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "correct": 1,
+        "total_expected": 1,
+        "total_predicted": 1
+      },
+      "policy_compliance": true,
+      "response_quality_score": 5.0,
+      "execution_time": 2.004617,
+      "error": null,
+      "policy_decision_details": {
+        "allowed": false,
+        "reason": "Order ABC123 not found.",
+        "requires_approval": false,
+        "approval_type": null
+      },
+      "actual_response": "It looks like we weren't able to find an order with the ID ABC123. Could you please double-check the order number and send it over? That way, I can help you more effectively. If you have any other details about the order, feel free to share those too!"
+    },
+    {
+      "test_case_id": "edge_02",
+      "predicted_intent": "complaint",
+      "extracted_entities": {},
+      "entity_metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "correct": 0,
+        "total_expected": 0,
+        "total_predicted": 0
+      },
+      "policy_compliance": true,
+      "response_quality_score": 5.0,
+      "execution_time": 2.404218,
+      "error": null,
+      "policy_decision_details": {
+        "allowed": true,
+        "reason": "General inquiry handled - no specific policy restrictions apply",
+        "requires_approval": false,
+        "approval_type": null
+      },
+      "actual_response": "I'm sorry to hear you're upset about your order. I'd like to help resolve this for you. Could you please let me know more about the issue? If you'd like, I can assist with order tracking or cancellation."
+    }
+  ]
+}
