@@ -296,7 +296,7 @@ class PolicyAwareChatbot:
         """Build the conversation flow graph."""
 
         # create the graph
-        workflow = StateGraph(dict)
+        workflow = StateGraph(ChatState)
 
         # add nodes
         workflow.add_node("router", self._route_conversation)
@@ -326,31 +326,31 @@ class PolicyAwareChatbot:
 
         return workflow.compile()
 
-    def _route_conversation(self, state: dict) -> dict:
+    def _route_conversation(self, state: ChatState) -> ChatState:
         """Route the conversation to appropriate agent."""
-        current_message = state["messages"][-1]["content"]
-        conversation_history = state["messages"][:-1]
+        current_message = state.messages[-1]["content"]
+        conversation_history = state.messages[:-1]
 
         intent_result = self.router.classify_intent(
             current_message, conversation_history
         )
 
-        state["current_intent"] = intent_result.intent
-        state["extracted_entities"] = intent_result.extracted_entities
+        state.current_intent = intent_result.intent
+        state.extracted_entities = intent_result.extracted_entities
 
         # Extract order ID if present
         if "order_id" in intent_result.extracted_entities:
-            state["order_id"] = intent_result.extracted_entities["order_id"]
+            state.order_id = intent_result.extracted_entities["order_id"]
 
         # Extract email if present
         if "email" in intent_result.extracted_entities:
-            state["customer_email"] = intent_result.extracted_entities["email"]
+            state.customer_email = intent_result.extracted_entities["email"]
 
         return state
 
-    def _route_decision(self, state: dict) -> str:
+    def _route_decision(self, state: ChatState) -> str:
         """Decide which agent should handle the conversation."""
-        intent = state.get("current_intent", "unknown")
+        intent = state.current_intent or "unknown"
 
         if intent == "order_cancellation":
             return "cancellation"
@@ -361,48 +361,44 @@ class PolicyAwareChatbot:
         else:
             return "end"
 
-    def _handle_cancellation(self, state: dict) -> dict:
+    def _handle_cancellation(self, state: ChatState) -> ChatState:
         """Handle order cancellation requests."""
-        chat_state = ChatState(**state)
-
-        result = self.cancellation_agent.process_cancellation_request(chat_state)
+        result = self.cancellation_agent.process_cancellation_request(state)
 
         if result.get("requires_followup") or result.get("requires_approval"):
             response = result["response"]
         else:
-            response = self.cancellation_agent.generate_response(chat_state, result)
+            response = self.cancellation_agent.generate_response(state, result)
 
-        state["messages"].append({"role": "assistant", "content": response})
+        state.messages.append({"role": "assistant", "content": response})
 
         if result.get("requires_human_handoff"):
-            state["requires_human_handoff"] = True
+            state.requires_human_handoff = True
 
         if result.get("policy_decision"):
-            state["policy_decision"] = result.get("policy_decision")
+            state.policy_decision = result.get("policy_decision")
 
         return state
 
-    def _handle_tracking(self, state: dict) -> dict:
+    def _handle_tracking(self, state: ChatState) -> ChatState:
         """Handle order tracking requests."""
-        chat_state = ChatState(**state)
-
-        result = self.tracking_agent.process_tracking_request(chat_state)
+        result = self.tracking_agent.process_tracking_request(state)
 
         if result.get("requires_followup") or "tracking_info" not in result:
             response = result["response"]
         else:
-            response = self.tracking_agent.generate_response(chat_state, result)
+            response = self.tracking_agent.generate_response(state, result)
 
-        state["messages"].append({"role": "assistant", "content": response})
+        state.messages.append({"role": "assistant", "content": response})
 
         if result.get("policy_decision"):
-            state["policy_decision"] = result.get("policy_decision")
+            state.policy_decision = result.get("policy_decision")
 
         return state
 
-    def _handle_general(self, state: dict) -> dict:
+    def _handle_general(self, state: ChatState) -> ChatState:
         """Handle general inquiries."""
-        current_message = state["messages"][-1]["content"]
+        current_message = state.messages[-1]["content"]
 
         # generate a helpful general response
         prompt = ChatPromptTemplate.from_template("""
@@ -422,13 +418,13 @@ class PolicyAwareChatbot:
         chain = prompt | self.cancellation_agent.llm
         response = chain.invoke({"message": current_message})
 
-        state["messages"].append({"role": "assistant", "content": response.content})
+        state.messages.append({"role": "assistant", "content": response.content})
 
         policy_decision = PolicyDecision(
             allowed=True,
             reason="General inquiry handled - no specific policy restrictions apply",
         )
-        state["policy_decision"] = policy_decision
+        state.policy_decision = policy_decision
 
         return state
 
@@ -443,22 +439,26 @@ class PolicyAwareChatbot:
         conversation_history.append({"role": "user", "content": message})
 
         # iinitialize state
-        initial_state = {
-            "messages": conversation_history,
-            "current_intent": None,
-            "order_id": None,
-            "customer_email": None,
-            "extracted_entities": {},
-            "requires_human_handoff": False,
-        }
+        initial_state = ChatState(
+            messages=conversation_history,
+            current_intent=None,
+            order_id=None,
+            customer_email=None,
+            extracted_entities={},
+            requires_human_handoff=False,
+        )
 
         # run the graph
-        final_state = self.graph.invoke(initial_state)  # return the response
+        final_state_dict = self.graph.invoke(initial_state)
+
+        # The final state from graph.invoke is a dictionary
         return {
-            "response": final_state["messages"][-1]["content"],
-            "conversation_history": final_state["messages"],
-            "intent": final_state.get("current_intent"),
-            "extracted_entities": final_state.get("extracted_entities", {}),
-            "policy_decision": final_state.get("policy_decision"),
-            "requires_human_handoff": final_state.get("requires_human_handoff", False),
+            "response": final_state_dict["messages"][-1]["content"],
+            "conversation_history": final_state_dict["messages"],
+            "intent": final_state_dict.get("current_intent"),
+            "extracted_entities": final_state_dict.get("extracted_entities", {}),
+            "policy_decision": final_state_dict.get("policy_decision"),
+            "requires_human_handoff": final_state_dict.get(
+                "requires_human_handoff", False
+            ),
         }
