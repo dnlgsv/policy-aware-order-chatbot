@@ -107,10 +107,20 @@ class PolicyEngine:
     def __init__(self):
         self.order_policy = OrderPolicy()
 
-    def evaluate_cancellation(self, order_data: dict[str, Any]) -> PolicyDecision:
+    def evaluate_cancellation(self, order_data: dict[str, Any] | Any) -> PolicyDecision:
         """Evaluate if an order cancellation is allowed."""
-        order_date = datetime.fromisoformat(order_data["order_date"])
-        order_status = OrderStatus(order_data["status"])
+        # handle both dict and Pydantic model inputs
+        if hasattr(order_data, "order_date"):
+            # Pydantic model
+            order_date_str = order_data.order_date
+            order_status = OrderStatus(order_data.status)
+        else:
+            # Dictionary
+            order_date_str = order_data["order_date"]
+            order_status = OrderStatus(order_data["status"])
+
+        # convert string to datetime
+        order_date = datetime.fromisoformat(order_date_str)
 
         return self.order_policy.can_cancel_order(order_date, order_status)
 

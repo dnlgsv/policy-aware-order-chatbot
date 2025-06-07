@@ -275,7 +275,7 @@ class TrackingAgent(ChatbotAgent):
         chain = prompt | self.llm
 
         response = chain.invoke(
-            {"order_id": state.order_id, "tracking_info": tracking_info.dict()}
+            {"order_id": state.order_id, "tracking_info": tracking_info.model_dump()}
         )
 
         return response.content
