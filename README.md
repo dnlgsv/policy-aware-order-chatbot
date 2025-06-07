@@ -49,7 +49,19 @@ This project implements a generative chatbot that uses a Large Language Model (L
 
 The following diagram illustrates the agent graph structure, showing the flow of conversation between different specialized agents:
 
-![Agent Graph](data/images/agent_graph.png)
+```mermaid
+graph TD;
+    A[Start] --> B{Router: Classify Intent};
+    B -- "order_cancellation" --> C[Cancellation Agent];
+    B -- "order_tracking" --> D[Tracking Agent];
+    B -- "general_inquiry" --> E[General Inquiry Agent];
+    B -- "human_handoff" --> F[Human Handoff Agent];
+    B -- "complaint / unknown" --> E;
+    C --> G[End];
+    D --> G[End];
+    E --> G[End];
+    F --> G[End];
+```
 
 ## Setup
 
