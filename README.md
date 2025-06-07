@@ -183,7 +183,7 @@ To assess the chatbot's performance:
 
 -   **User Authentication**: Implement user identification to fetch specific user orders without asking for email/order ID repeatedly.
 -   **Database Integration**: Replace the mock `OrderService` with a real database connection.
--   **Expanded Policy Engine**: Incorporate more complex policies and a more dynamic way to manage them.
+-   **Expanded Policy Engine**: Incorporate more complex policies and a more dynamic way to manage them. E.g. edit the order, by replacing or canceling only particular items.
 -   **Human Handoff**: Fully implement the human handoff mechanism.
 -   **CI/CD Pipeline**: Set up automated testing and deployment.
--   **Advanced RAG**: For more complex queries and more complex policies, implement Retrieval Augmented Generation to pull in information from a knowledge base of policies or FAQs.
+-   **Advanced RAG**: For more complex queries and more complex policies, implement Retrieval Augmented Generation to pull in information from a knowledge base of policies or FAQs. E.g. suggest similar items for replacement and find something what a user can like based on his previous orders
