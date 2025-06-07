@@ -5,6 +5,7 @@ Simple interface for demonstrating chatbot capabilities.
 
 from datetime import datetime
 import os
+import uuid
 
 import requests
 import streamlit as st
@@ -40,12 +41,14 @@ def get_available_orders():
         return []
 
 
-def send_chat_message(message, order_id=None):
+def send_chat_message(message: str, history: list[dict], session_id: str):
     """Send a chat message to the API."""
     try:
-        payload = {"message": message}
-        if order_id:
-            payload["order_id"] = order_id
+        payload = {
+            "message": message,
+            "conversation_history": history,
+            "session_id": session_id,
+        }
 
         response = requests.post(
             f"{API_BASE_URL}/chat",
@@ -139,9 +142,11 @@ def main():
         - "I need help with my order"
         """)
 
-    # Initialize chat history
+    # Initialize chat history and session ID
     if "messages" not in st.session_state:
         st.session_state.messages = []
+    if "session_id" not in st.session_state:
+        st.session_state.session_id = str(uuid.uuid4())
 
     # Display chat history
     for message in st.session_state.messages:
@@ -163,7 +168,12 @@ def main():
 
     # Chat input
     if prompt := st.chat_input("Ask your question here..."):
-        # Add user message to chat history
+        api_history = [
+            {"role": msg["role"], "content": msg["content"]}
+            for msg in st.session_state.messages
+        ]
+
+        # Add user message to chat history for display
         st.session_state.messages.append({"role": "user", "content": prompt})
 
         # Display user message
@@ -173,7 +183,11 @@ def main():
         # Get chatbot response
         with st.chat_message("assistant"):
             with st.spinner("Processing your request..."):
-                response = send_chat_message(prompt)
+                response = send_chat_message(
+                    prompt,
+                    api_history,
+                    st.session_state.session_id,
+                )
 
             if "error" in response:
                 st.error(f"Error: {response['error']}")
@@ -212,6 +226,7 @@ def main():
     with col1:
         if st.button("🗑️ Clear Chat"):
             st.session_state.messages = []
+            st.session_state.session_id = str(uuid.uuid4())
             st.rerun()
 
     with col2:

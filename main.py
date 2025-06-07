@@ -79,7 +79,9 @@ async def chat_endpoint(request: ChatRequest):
         logger.info(f"Chat request: {request.message}")
 
         result = chatbot.chat(
-            message=request.message, conversation_history=request.conversation_history
+            message=request.message,
+            conversation_history=request.conversation_history,
+            session_id=request.session_id,
         )
 
         response = ChatResponse(

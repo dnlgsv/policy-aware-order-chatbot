@@ -36,6 +36,7 @@ class IntentClassification(BaseModel):
         "order_tracking",
         "general_inquiry",
         "complaint",
+        "human_handoff",
         "unknown",
     ]
     confidence: float
@@ -74,6 +75,7 @@ class RouterAgent(ChatbotAgent):
         - order_tracking: User wants to track an order or check order status
         - general_inquiry: General questions about policies, services, etc.
         - complaint: User is expressing dissatisfaction or filing a complaint
+        - human_handoff: User wants to speak to a real person
         - unknown: Intent cannot be determined
 
         Extract relevant entities:
@@ -182,18 +184,14 @@ class CancellationAgent(ChatbotAgent):
         """Generate a natural, empathetic response."""
 
         prompt = ChatPromptTemplate.from_template("""
-        You are a helpful customer service agent. Generate a natural, empathetic response based on the cancellation processing result.
+        You are a helpful customer service agent.
+        Generate a natural, empathetic response based on the cancellation processing result.
+        Do not start with a greeting if there is a conversation history.
 
         Be conversational, understanding, and provide clear next steps when applicable.
 
         Order ID: {order_id}
         Processing Result: {result}
-
-        Generate a response that:
-        1. Acknowledges the customer's request
-        2. Clearly explains the outcome
-        3. Provides next steps if needed
-        4. Maintains a helpful, professional tone
         """)
 
         chain = prompt | self.llm
@@ -259,6 +257,7 @@ class TrackingAgent(ChatbotAgent):
 
         prompt = ChatPromptTemplate.from_template("""
         You are a helpful customer service agent providing order tracking information.
+        Do not start with a greeting if there is a conversation history.
 
         Create a clear, informative response that includes:
         1. Current order status
@@ -288,6 +287,7 @@ class PolicyAwareChatbot:
         self.router = RouterAgent(model_name)
         self.cancellation_agent = CancellationAgent(model_name)
         self.tracking_agent = TrackingAgent(model_name)
+        self.conversation_states = {}
 
         # conversation graph
         self.graph = self._build_graph()
@@ -303,6 +303,7 @@ class PolicyAwareChatbot:
         workflow.add_node("cancellation", self._handle_cancellation)
         workflow.add_node("tracking", self._handle_tracking)
         workflow.add_node("general", self._handle_general)
+        workflow.add_node("human_handoff", self._handle_human_handoff)
 
         # set entry point
         workflow.set_entry_point("router")
@@ -315,6 +316,7 @@ class PolicyAwareChatbot:
                 "cancellation": "cancellation",
                 "tracking": "tracking",
                 "general": "general",
+                "human_handoff": "human_handoff",
                 "end": END,
             },
         )
@@ -323,6 +325,7 @@ class PolicyAwareChatbot:
         workflow.add_edge("cancellation", END)
         workflow.add_edge("tracking", END)
         workflow.add_edge("general", END)
+        workflow.add_edge("human_handoff", END)
 
         return workflow.compile()
 
@@ -358,6 +361,8 @@ class PolicyAwareChatbot:
             return "tracking"
         elif intent in ["general_inquiry", "complaint", "unknown"]:
             return "general"
+        elif intent == "human_handoff":
+            return "human_handoff"
         else:
             return "end"
 
@@ -403,6 +408,7 @@ class PolicyAwareChatbot:
         # generate a helpful general response
         prompt = ChatPromptTemplate.from_template("""
         You are a helpful customer service agent. The user has made a general inquiry.
+        Do not start with a greeting if there is a conversation history.
 
         Provide a helpful response and guide them to specific services if appropriate.
         Available services:
@@ -428,28 +434,42 @@ class PolicyAwareChatbot:
 
         return state
 
+    def _handle_human_handoff(self, state: ChatState) -> ChatState:
+        """Handles the human handoff process."""
+        handoff_message = "We have not hired any real people yet. Please continue to interact with me."
+        state.messages.append({"role": "assistant", "content": handoff_message})
+        state.requires_human_handoff = True
+        return state
+
     def chat(
-        self, message: str, conversation_history: list[dict[str, str]] = None
+        self,
+        message: str,
+        session_id: str,
+        conversation_history: list[dict[str, str]] = None,
     ) -> dict[str, Any]:
         """Main chat interface."""
-        if conversation_history is None:
-            conversation_history = []
-
-        # add user message
-        conversation_history.append({"role": "user", "content": message})
-
-        # iinitialize state
-        initial_state = ChatState(
-            messages=conversation_history,
-            current_intent=None,
-            order_id=None,
-            customer_email=None,
-            extracted_entities={},
-            requires_human_handoff=False,
-        )
+        if session_id and session_id in self.conversation_states:
+            # retrieve state dictionary
+            current_state_dict = self.conversation_states[session_id]
+            # create ChatState object from dictionary
+            current_state = ChatState(**current_state_dict)
+            # add user message
+            current_state.messages.append({"role": "user", "content": message})
+        else:
+            # create new state
+            if conversation_history is None:
+                conversation_history = []
+            conversation_history.append({"role": "user", "content": message})
+            current_state = ChatState(
+                messages=conversation_history,
+            )
 
         # run the graph
-        final_state_dict = self.graph.invoke(initial_state)
+        final_state_dict = self.graph.invoke(current_state)
+
+        # save state
+        if session_id:
+            self.conversation_states[session_id] = final_state_dict
 
         # The final state from graph.invoke is a dictionary
         return {
@@ -461,4 +481,5 @@ class PolicyAwareChatbot:
             "requires_human_handoff": final_state_dict.get(
                 "requires_human_handoff", False
             ),
+            "session_id": session_id,
         }
