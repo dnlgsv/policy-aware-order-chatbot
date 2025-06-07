@@ -73,7 +73,6 @@ def check_api_health():
 # Main App
 def main():
     st.title("🤖 Policy-Aware Order Chatbot")
-    st.markdown("### AI-powered customer service for order management")
 
     # Check API status
     api_healthy = check_api_health()
@@ -139,8 +138,6 @@ def main():
         - "I need help with my order"
         """)
 
-    st.header("💬 Chat with the Assistant")
-
     # Initialize chat history
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -164,7 +161,7 @@ def main():
                     st.warning("⚠️ This request requires human review")
 
     # Chat input
-    if prompt := st.chat_input("Type your message here..."):
+    if prompt := st.chat_input("Ask your question here..."):
         # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": prompt})
 
