@@ -13,9 +13,9 @@ from typing import Any
 
 import numpy as np
 from dotenv import load_dotenv
-from langchain.chat_models import ChatOpenAI
 from langchain.output_parsers import PydanticOutputParser
 from langchain.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 from sklearn.metrics import (
     accuracy_score,
