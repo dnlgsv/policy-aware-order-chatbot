@@ -2,6 +2,9 @@
 
 This project implements a generative chatbot that uses a Large Language Model (LLM) to handle customer inquiries about order cancellation and tracking, while strictly adhering to company policies. It features API integration for order management and a robust evaluation framework.
 
+## UI Preview
+![Agent Graph](data/images/user_interface_streamlit.png)
+
 ## Features
 
 -   **Generative Chatbot**: Utilizes an LLM (via Instructor, LangChain and LangGraph) for natural and context-aware conversations.
@@ -41,6 +44,12 @@ This project implements a generative chatbot that uses a Large Language Model (L
 ├── test_system.py          # System tests
 └── uv.lock                 # Lock file for reproducible builds with uv
 ```
+
+## Agent Graph Visualization
+
+The following diagram illustrates the agent graph structure, showing the flow of conversation between different specialized agents:
+
+![Agent Graph](data/images/agent_graph.png)
 
 ## Setup
 
