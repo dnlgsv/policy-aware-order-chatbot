@@ -17,7 +17,11 @@ from langchain.chat_models import ChatOpenAI
 from langchain.output_parsers import PydanticOutputParser
 from langchain.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    precision_recall_fscore_support,
+)
 
 from chatbot.agents import PolicyAwareChatbot
 from chatbot.policy_engine import PolicyEngine
@@ -63,10 +67,13 @@ class EvaluationResult:
     test_case_id: str
     predicted_intent: str
     extracted_entities: dict[str, Any]
+    entity_metrics: dict[str, float]
     policy_compliance: bool
     response_quality_score: float
     execution_time: float
-    error: str = None
+    error: str | None = None
+    policy_decision_details: dict[str, Any] | None = None
+    actual_response: str | None = None
 
 
 class ChatbotEvaluator:
@@ -200,66 +207,161 @@ class ChatbotEvaluator:
     async def evaluate_single_case(self, test_case: TestCase) -> EvaluationResult:
         """Evaluate a single test case."""
         start_time = datetime.now()
+        raw_chatbot_result = {}
 
         try:
             # get chatbot response
-            result = self.chatbot.chat(test_case.user_message)
+            raw_chatbot_result = self.chatbot.chat(test_case.user_message)
 
             execution_time = (datetime.now() - start_time).total_seconds()
 
             # evaluate intent classification
-            predicted_intent = result.get("intent", "unknown")
+            predicted_intent = raw_chatbot_result.get("intent", "unknown")
 
             # evaluate entity extraction
-            extracted_entities = result.get("extracted_entities", {})
-            self._calculate_entity_accuracy(
+            extracted_entities = raw_chatbot_result.get("extracted_entities", {})
+            # store the detailed entity metrics
+            entity_metrics = self._calculate_entity_metrics(
                 test_case.expected_entities, extracted_entities
-            )  # Call the method without assigning to unused variable
+            )
 
             # evaluate policy compliance
-            policy_compliance = self._evaluate_policy_compliance(test_case, result)
+            policy_compliance = self._evaluate_policy_compliance(
+                test_case, raw_chatbot_result
+            )
 
             # evaluate response quality
+            chatbot_response_text = raw_chatbot_result.get("response", "")
             response_quality = await self._evaluate_response_quality(
-                test_case.user_message, result["response"], test_case.context
+                test_case.user_message, chatbot_response_text, test_case.context
             )
+
+            # get policy decision details for logging
+            policy_decision_output = raw_chatbot_result.get("policy_decision")
+            if hasattr(policy_decision_output, "model_dump"):
+                policy_details_for_log = policy_decision_output.model_dump()
+            elif isinstance(policy_decision_output, dict):
+                policy_details_for_log = policy_decision_output
+            else:
+                policy_details_for_log = (
+                    str(policy_decision_output)
+                    if policy_decision_output is not None
+                    else None
+                )
 
             return EvaluationResult(
                 test_case_id=test_case.id,
                 predicted_intent=predicted_intent,
                 extracted_entities=extracted_entities,
+                entity_metrics=entity_metrics,
                 policy_compliance=policy_compliance,
                 response_quality_score=response_quality,
                 execution_time=execution_time,
+                policy_decision_details=policy_details_for_log,  # log details
+                actual_response=chatbot_response_text,  # log actual response
             )
 
         except Exception as e:
+            logger.error(
+                f"Error evaluating test case {test_case.id}: {e}", exc_info=True
+            )  # Added exc_info for better debugging
             execution_time = (datetime.now() - start_time).total_seconds()
+
+            # get response text even in case of partial failure before exception
+            chatbot_response_text_on_error = (
+                raw_chatbot_result.get("response", "") if raw_chatbot_result else ""
+            )
+            policy_decision_on_error = (
+                raw_chatbot_result.get("policy_decision")
+                if raw_chatbot_result
+                else None
+            )
+            if hasattr(policy_decision_on_error, "model_dump"):
+                policy_details_on_error = policy_decision_on_error.model_dump()
+            elif isinstance(policy_decision_on_error, dict):
+                policy_details_on_error = policy_decision_on_error
+            else:
+                policy_details_on_error = (
+                    str(policy_decision_on_error)
+                    if policy_decision_on_error is not None
+                    else None
+                )
+
             return EvaluationResult(
                 test_case_id=test_case.id,
                 predicted_intent="error",
-                extracted_entities={},
+                extracted_entities=raw_chatbot_result.get("extracted_entities", {})
+                if raw_chatbot_result
+                else {},
+                entity_metrics={
+                    "precision": 0,
+                    "recall": 0,
+                    "f1": 0,
+                    "correct": 0,
+                    "total_expected": 0,
+                    "total_predicted": 0,
+                },
                 policy_compliance=False,
                 response_quality_score=0.0,
                 execution_time=execution_time,
                 error=str(e),
+                policy_decision_details=policy_details_on_error,  # log details even on error if available
+                actual_response=chatbot_response_text_on_error,  # log response even on error if available
             )
 
-    def _calculate_entity_accuracy(
+    def _calculate_entity_metrics(
         self, expected: dict[str, str], predicted: dict[str, Any]
-    ) -> float:
-        """Calculate entity extraction accuracy."""
-        if not expected:
-            return 1.0 if not predicted else 0.5
+    ) -> dict[str, float]:
+        """Calculate precision, recall, and F1 for entity extraction."""
+        if not expected and not predicted:
+            return {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1": 1.0,
+                "correct": 0,
+                "total_expected": 0,
+                "total_predicted": 0,
+            }
+        if not expected:  # all predicted are false positives if any
+            return {
+                "precision": 0.0,
+                "recall": 1.0,
+                "f1": 0.0,
+                "correct": 0,
+                "total_expected": 0,
+                "total_predicted": len(predicted),
+            }
+        if not predicted:  # all expected are false negatives
+            return {
+                "precision": 1.0,
+                "recall": 0.0,
+                "f1": 0.0,
+                "correct": 0,
+                "total_expected": len(expected),
+                "total_predicted": 0,
+            }
 
-        correct = 0
-        total = len(expected)
+        expected_set = set(expected.items())
+        predicted_set = set(predicted.items())
 
-        for key, expected_value in expected.items():
-            if key in predicted and str(predicted[key]) == expected_value:
-                correct += 1
+        correct_predictions = len(expected_set.intersection(predicted_set))
 
-        return correct / total if total > 0 else 1.0
+        precision = correct_predictions / len(predicted_set) if predicted_set else 1.0
+        recall = correct_predictions / len(expected_set) if expected_set else 1.0
+        f1 = (
+            2 * (precision * recall) / (precision + recall)
+            if (precision + recall) > 0
+            else 0.0
+        )
+
+        return {
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+            "correct": correct_predictions,
+            "total_expected": len(expected_set),
+            "total_predicted": len(predicted_set),
+        }
 
     def _evaluate_policy_compliance(
         self, test_case: TestCase, result: dict[str, Any]
@@ -282,37 +384,84 @@ class ChatbotEvaluator:
             if test_case.expected_policy_outcome == "allowed":
                 return actual_allowed and not actual_requires_approval
             elif test_case.expected_policy_outcome == "denied":
-                return not actual_allowed
+                return not actual_allowed and not actual_requires_approval
             elif test_case.expected_policy_outcome == "requires_approval":
                 return actual_allowed and actual_requires_approval and requires_handoff
             elif test_case.expected_policy_outcome == "n/a":
                 return True
             else:
-                return False
-        else:
-            if test_case.expected_policy_outcome == "allowed":
-                return (
-                    (
-                        "cancelled" in response_text
-                        or "tracking information" in response_text
-                    )
-                    and "approval" not in response_text
-                    and "sorry" not in response_text
-                    and "unable" not in response_text
+                logger.warning(
+                    f"Unknown expected_policy_outcome '{test_case.expected_policy_outcome}' for TC {test_case.id} with policy_decision_data."
                 )
+                return False
+        else:  # fallback logic: policy_decision_data is None
+            logger.info(
+                f"TC {test_case.id}: No policy_decision_data found, using fallback logic."
+            )
+            if test_case.expected_policy_outcome == "n/a":
+                return True
+
+            if test_case.expected_policy_outcome == "allowed":
+                if test_case.expected_intent in ["general_inquiry", "complaint"]:
+                    return not (
+                        "sorry" in response_text
+                        or "unable" in response_text
+                        or "cannot" in response_text
+                        or "denied" in response_text
+                        or "not allowed" in response_text
+                        or "approval" in response_text
+                    )
+                else:
+                    action_success_indicated = False
+                    if test_case.expected_intent == "order_cancellation":
+                        action_success_indicated = (
+                            "cancelled" in response_text
+                            or "has been cancelled" in response_text
+                        )
+                    elif test_case.expected_intent == "order_tracking":
+                        action_success_indicated = (
+                            "tracking information" in response_text
+                            or "status is" in response_text
+                            or "shipping details" in response_text
+                            or "here is the information" in response_text
+                        )
+
+                    return (
+                        action_success_indicated
+                        and "approval" not in response_text
+                        and not (
+                            "sorry" in response_text
+                            or "unable" in response_text
+                            or "cannot" in response_text
+                            or "denied" in response_text
+                        )
+                    )
+
             elif test_case.expected_policy_outcome == "denied":
-                return (
+                denial_indicated = (
                     "sorry" in response_text
                     or "unable" in response_text
                     or "cannot" in response_text
-                    or "not found" in response_text
+                    or "not found" in response_text  # for non-existent orders
+                    or "denied" in response_text
+                    or "not allowed" in response_text
+                    or "policy prevents" in response_text
                 )
-            elif test_case.expected_policy_outcome == "requires_approval":
-                return "approval" in response_text and requires_handoff
-            elif test_case.expected_policy_outcome == "n/a":
-                return True
+                return denial_indicated and "approval" not in response_text
 
-        return False
+            elif test_case.expected_policy_outcome == "requires_approval":
+                approval_text_present = (
+                    "approval" in response_text
+                    or "needs approval" in response_text
+                    or "manager approval" in response_text
+                    or "requires authorization" in response_text
+                )
+                return approval_text_present and requires_handoff
+            else:
+                logger.warning(
+                    f"Unknown expected_policy_outcome '{test_case.expected_policy_outcome}' for TC {test_case.id} without policy_decision_data."
+                )
+                return False
 
     async def _evaluate_response_quality(
         self,
@@ -395,10 +544,77 @@ class ChatbotEvaluator:
         total_cases = len(results)
         successful_cases = [r for r in results if r.error is None]
 
-        # intent classification accuracy
-        test_intents = [tc.expected_intent for tc in self.test_cases]
-        predicted_intents = [r.predicted_intent for r in results]
-        intent_accuracy = accuracy_score(test_intents, predicted_intents)
+        # intent classification etrics
+        test_intents = [
+            tc.expected_intent
+            for tc in self.test_cases
+            if tc.id in [r.test_case_id for r in successful_cases]
+        ]
+        predicted_intents = [r.predicted_intent for r in successful_cases]
+
+        intent_accuracy = (
+            accuracy_score(test_intents, predicted_intents) if successful_cases else 0
+        )
+
+        # using zero_division=0 to handle cases where a class might not be predicted or not present in true labels for a small test set
+        intent_precision, intent_recall, intent_f1, _ = precision_recall_fscore_support(
+            test_intents, predicted_intents, average="weighted", zero_division=0
+        )
+
+        intent_classification_report_str = (
+            classification_report(test_intents, predicted_intents, zero_division=0)
+            if successful_cases
+            else "No successful cases to report for intent classification."
+        )
+
+        # entity extraction metrics
+        all_entity_metrics = [
+            r.entity_metrics for r in successful_cases if hasattr(r, "entity_metrics")
+        ]
+        if all_entity_metrics:
+            avg_entity_precision = np.mean([m["precision"] for m in all_entity_metrics])
+            avg_entity_recall = np.mean([m["recall"] for m in all_entity_metrics])
+            avg_entity_f1 = np.mean([m["f1"] for m in all_entity_metrics])
+            total_correct_entities = sum(m["correct"] for m in all_entity_metrics)
+            total_expected_entities = sum(
+                m["total_expected"] for m in all_entity_metrics
+            )
+            total_predicted_entities = sum(
+                m["total_predicted"] for m in all_entity_metrics
+            )
+            overall_entity_precision = (
+                total_correct_entities / total_predicted_entities
+                if total_predicted_entities > 0
+                else 1.0
+            )
+            overall_entity_recall = (
+                total_correct_entities / total_expected_entities
+                if total_expected_entities > 0
+                else 1.0
+            )
+            overall_entity_f1 = (
+                2
+                * (overall_entity_precision * overall_entity_recall)
+                / (overall_entity_precision + overall_entity_recall)
+                if (overall_entity_precision + overall_entity_recall) > 0
+                else 0.0
+            )
+        else:
+            avg_entity_precision = 0
+            avg_entity_recall = 0
+            avg_entity_f1 = 0
+            overall_entity_precision = 0
+            overall_entity_recall = 0
+            overall_entity_f1 = 0
+
+        entity_metrics_summary = {
+            "average_precision": avg_entity_precision,
+            "average_recall": avg_entity_recall,
+            "average_f1": avg_entity_f1,
+            "overall_precision": overall_entity_precision,
+            "overall_recall": overall_entity_recall,
+            "overall_f1": overall_entity_f1,
+        }
 
         # policy compliance rate
         policy_compliance_rate = (
@@ -424,6 +640,11 @@ class ChatbotEvaluator:
             "total_test_cases": total_cases,
             "successful_cases": len(successful_cases),
             "intent_accuracy": intent_accuracy,
+            "intent_precision_weighted": intent_precision,
+            "intent_recall_weighted": intent_recall,
+            "intent_f1_weighted": intent_f1,
+            "intent_classification_report": intent_classification_report_str,
+            "entity_extraction_metrics": entity_metrics_summary,
             "policy_compliance_rate": policy_compliance_rate,
             "average_response_quality": avg_response_quality,
             "average_execution_time": avg_execution_time,
@@ -442,10 +663,21 @@ Generated: {datetime.now().isoformat()}
 - Total Test Cases: {metrics["total_test_cases"]}
 - Successful Cases: {metrics["successful_cases"]}
 - Intent Classification Accuracy: {metrics["intent_accuracy"]:.2%}
+- Intent Precision (Weighted Avg): {metrics["intent_precision_weighted"]:.2f}
+- Intent Recall (Weighted Avg): {metrics["intent_recall_weighted"]:.2f}
+- Intent F1-score (Weighted Avg): {metrics["intent_f1_weighted"]:.2f}
+- Entity Extraction F1 (Overall): {metrics["entity_extraction_metrics"]["overall_f1"]:.2f}
+  - Entity Precision (Overall): {metrics["entity_extraction_metrics"]["overall_precision"]:.2f}
+  - Entity Recall (Overall): {metrics["entity_extraction_metrics"]["overall_recall"]:.2f}
 - Policy Compliance Rate: {metrics["policy_compliance_rate"]:.2%}
-- Average Response Quality: {metrics["average_response_quality"]:.2f}/1.0
+- Average Response Quality: {metrics["average_response_quality"]:.2f}/5.0
 - Average Execution Time: {metrics["average_execution_time"]:.3f}s
 - Error Rate: {metrics["error_rate"]:.2%}
+
+## Intent Classification Detailed Report
+```
+{metrics["intent_classification_report"]}
+```
 
 ## Key Insights
 
@@ -497,10 +729,13 @@ Generated: {datetime.now().isoformat()}
                         "test_case_id": r.test_case_id,
                         "predicted_intent": r.predicted_intent,
                         "extracted_entities": r.extracted_entities,
+                        "entity_metrics": r.entity_metrics,
                         "policy_compliance": r.policy_compliance,
                         "response_quality_score": r.response_quality_score,
                         "execution_time": r.execution_time,
                         "error": r.error,
+                        "policy_decision_details": r.policy_decision_details,
+                        "actual_response": r.actual_response,
                     }
                     for r in evaluation_data["results"]
                 ],
