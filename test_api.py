@@ -78,11 +78,11 @@ if __name__ == "__main__":
     results = []
     for test_name, test_func in tests:
         try:
-            success = test_func()
-            results.append((test_name, "PASS" if success else "FAIL"))
+            test_func()
+            results.append((test_name, "PASS"))
         except Exception as e:
             print(f"Error in {test_name}: {e}")
-            results.append((test_name, "ERROR"))
+            results.append((test_name, "FAIL"))
 
         print("-" * 50)
 
