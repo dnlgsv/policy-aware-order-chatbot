@@ -131,6 +131,7 @@ class ChatbotDemo:
                 result = self.chatbot.chat(
                     message=user_input,
                     conversation_history=self.conversation_history.copy(),
+                    session_id="interactive_demo",
                 )
 
                 # Update conversation history
@@ -226,7 +227,9 @@ async def run_automated_demo():
         print("-" * 50)
 
         try:
-            result = chatbot.chat(scenario["message"])
+            result = chatbot.chat(
+                message=scenario["message"], session_id=f"automated_demo_{i}"
+            )
 
             print("Response:")
             print(result["response"])
