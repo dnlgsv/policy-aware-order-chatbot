@@ -411,6 +411,8 @@ class PolicyAwareChatbot:
         Do not start with a greeting if there is a conversation history.
 
         Provide a helpful response and guide them to specific services if appropriate.
+        When asked about cancellation policy, explain that orders can be cancelled within 10 days of purchase.
+
         Available services:
         - Order cancellation
         - Order tracking
@@ -453,6 +455,7 @@ class PolicyAwareChatbot:
             current_state_dict = self.conversation_states[session_id]
             # create ChatState object from dictionary
             current_state = ChatState(**current_state_dict)
+            current_state.requires_human_handoff = False
             # add user message
             current_state.messages.append({"role": "user", "content": message})
         else:

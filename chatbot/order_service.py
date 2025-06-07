@@ -42,87 +42,47 @@ class OrderService:
     def _generate_sample_orders(self) -> dict[str, Order]:
         """Generate realistic looking sample orders for testing."""
         sample_orders = {}
+        now = datetime.now()
 
         # define specific orders that match test case expectations
         test_order_configs = [
-            # ORD-2025-1000: Recent pending order (cancellable)
-            {
-                "id": "ORD-2025-1000",
-                "days_ago": 2,
-                "status": OrderStatus.PENDING.value,
-                "customer": "customer0@example.com",
-            },
-            # ORD-2025-1001: Recent processing order (cancellable)
+            # Cancellable Orders (within 10 days)
+            {"id": "ORD-2025-1000", "days_ago": 2, "status": OrderStatus.PENDING.value},
             {
                 "id": "ORD-2025-1001",
                 "days_ago": 5,
                 "status": OrderStatus.PROCESSING.value,
-                "customer": "customer1@example.com",
             },
-            # ORD-2025-1002: Recent pending order (cancellable)
             {
                 "id": "ORD-2025-1002",
-                "days_ago": 3,
-                "status": OrderStatus.PENDING.value,
-                "customer": "customer2@example.com",
-            },
-            # ORD-2025-1003: Recent processing order (cancellable)
-            {
-                "id": "ORD-2025-1003",
-                "days_ago": 7,
-                "status": OrderStatus.PROCESSING.value,
-                "customer": "customer3@example.com",
-            },
-            # ORD-2025-1004: Recent pending order (cancellable)
-            {
-                "id": "ORD-2025-1004",
-                "days_ago": 1,
-                "status": OrderStatus.PENDING.value,
-                "customer": "customer4@example.com",
-            },
-            # ORD-2025-1005: Old order (not cancellable - too old)
-            {
-                "id": "ORD-2025-1005",
-                "days_ago": 16,
-                "status": OrderStatus.DELIVERED.value,
-                "customer": "customer5@example.com",
-            },
-            # ORD-2025-1006: Shipped order within cancellation window (requires approval)
-            {
-                "id": "ORD-2025-1006",
                 "days_ago": 8,
                 "status": OrderStatus.SHIPPED.value,
-                "customer": "customer6@example.com",
-            },
-            # ORD-2025-1007: Old shipped order (not cancellable - too old)
+            },  # Requires approval
+            # Non-Cancellable Orders (older than 10 days)
             {
-                "id": "ORD-2025-1007",
-                "days_ago": 20,
-                "status": OrderStatus.DELIVERED.value,
-                "customer": "customer7@example.com",
-            },
-            # ORD-2025-1008: Recent shipped order (requires approval)
-            {
-                "id": "ORD-2025-1008",
-                "days_ago": 6,
+                "id": "ORD-2025-1003",
+                "days_ago": 12,
                 "status": OrderStatus.SHIPPED.value,
-                "customer": "customer8@example.com",
             },
-            # ORD-2025-1009: Old delivered order (not cancellable)
             {
-                "id": "ORD-2025-1009",
-                "days_ago": 25,
+                "id": "ORD-2025-1004",
+                "days_ago": 15,
                 "status": OrderStatus.DELIVERED.value,
-                "customer": "customer9@example.com",
+            },
+            {
+                "id": "ORD-2025-1005",
+                "days_ago": 30,
+                "status": OrderStatus.DELIVERED.value,
             },
         ]
 
         for i, config in enumerate(test_order_configs):
-            order_date = datetime.now() - timedelta(days=config["days_ago"])
+            order_date = now - timedelta(days=config["days_ago"])
+            customer_email = f"customer{i}@example.com"
 
             order = Order(
                 order_id=config["id"],
-                customer_email=config["customer"],
+                customer_email=customer_email,
                 order_date=order_date.isoformat(),
                 status=config["status"],
                 items=[
@@ -135,9 +95,9 @@ class OrderService:
                 total_amount=round(random.uniform(50, 500), 2),
                 shipping_address={
                     "street": f"{100 + i} Main St",
-                    "city": "Berlin" if i < 5 else "Dublin",
-                    "country": "Germany" if i < 5 else "Ireland",
-                    "postal_code": f"1011{i}" if i < 5 else f"D0{i}",
+                    "city": "Berlin" if i < 3 else "Dublin",
+                    "country": "Germany" if i < 3 else "Ireland",
+                    "postal_code": f"1011{i}" if i < 3 else f"D0{i}",
                 },
                 tracking_number=f"TRK{1000 + i}"
                 if config["status"]
