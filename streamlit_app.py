@@ -4,6 +4,7 @@ Simple interface for demonstrating chatbot capabilities.
 """
 
 from datetime import datetime
+import os
 
 import requests
 import streamlit as st
@@ -17,7 +18,7 @@ st.set_page_config(
 )
 
 # API Configuration
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 
 def get_available_orders():
