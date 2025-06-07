@@ -27,61 +27,61 @@ The system comprises several key components:
 
 **3.2. Chatbot Core (`chatbot/` directory)**
 
-    **3.2.1. `PolicyAwareChatbot` (`chatbot/agents.py`)**
-    -   The central orchestrator, built using **LangGraph**.
-    -   Manages the conversational flow as a state machine.
-    -   Integrates various specialized agents (nodes in the graph) to handle different aspects of the conversation.
+**3.2.1. `PolicyAwareChatbot` (`chatbot/agents.py`)**
+-   The central orchestrator, built using **LangGraph**.
+-   Manages the conversational flow as a state machine.
+-   Integrates various specialized agents (nodes in the graph) to handle different aspects of the conversation.
 
-    **3.2.2. LangGraph State (`ChatState` in `chatbot/agents.py`)**
-    -   A Pydantic model representing the state of the conversation at any point. It includes:
-        -   `messages`: History of the conversation.
-        -   `current_intent`: The user's classified intent.
-        -   `order_id`, `customer_email`: Extracted entities.
-        -   `policy_decision`: Outcome of a policy check.
-        -   `order_data`: Fetched order details.
-        -   `requires_human_handoff`: Flag for escalation.
+**3.2.2. LangGraph State (`ChatState` in `chatbot/agents.py`)**
+-   A Pydantic model representing the state of the conversation at any point. It includes:
+    -   `messages`: History of the conversation.
+    -   `current_intent`: The user's classified intent.
+    -   `order_id`, `customer_email`: Extracted entities.
+    -   `policy_decision`: Outcome of a policy check.
+    -   `order_data`: Fetched order details.
+    -   `requires_human_handoff`: Flag for escalation.
 
-    **3.2.3. LangGraph Nodes & Edges (Conceptualized in `PolicyAwareChatbot._build_graph()`):**
+**3.2.3. LangGraph Nodes & Edges (Conceptualized in `PolicyAwareChatbot._build_graph()`):**
 
-    *   **Node 1: Intent Classification & Entity Extraction (`RouterAgent.classify_intent`)**
-        -   Input: User message, conversation history.
-        -   Action: Employs an LLM with a `ChatPromptTemplate` and `PydanticOutputParser` (`IntentClassification`) to determine user intent (e.g., `order_cancellation`, `order_tracking`, `general_inquiry`) and extract entities like `order_id`.
-        -   Output: Updates `ChatState` with `current_intent` and `extracted_entities`.
+*   **Node 1: Intent Classification & Entity Extraction (`RouterAgent.classify_intent`)**
+    -   Input: User message, conversation history.
+    -   Action: Employs an LLM with a `ChatPromptTemplate` and `PydanticOutputParser` (`IntentClassification`) to determine user intent (e.g., `order_cancellation`, `order_tracking`, `general_inquiry`) and extract entities like `order_id`.
+    -   Output: Updates `ChatState` with `current_intent` and `extracted_entities`.
 
-    *   **Conditional Edge: Route based on Intent**
-        -   Directs the flow to the appropriate specialized agent/node based on `current_intent`.
+*   **Conditional Edge: Route based on Intent**
+    -   Directs the flow to the appropriate specialized agent/node based on `current_intent`.
 
-    *   **Node 2a: Order Cancellation Handling (`CancellationAgent`)**
-        -   Triggered for `order_cancellation` intent.
-        -   Action: Verifies presence of `order_id` (prompts if missing). Fetches order details via `order_service.get_order()`. Evaluates cancellation eligibility using `policy_engine.evaluate_cancellation()`. If policy permits, processes cancellation via `order_service.cancel_order()`. Generates an LLM-based response reflecting the outcome.
-        -   Output: Updates `ChatState` with `response`, `policy_decision`, `order_data`, and `requires_human_handoff` status.
+*   **Node 2a: Order Cancellation Handling (`CancellationAgent`)**
+    -   Triggered for `order_cancellation` intent.
+    -   Action: Verifies presence of `order_id` (prompts if missing). Fetches order details via `order_service.get_order()`. Evaluates cancellation eligibility using `policy_engine.evaluate_cancellation()`. If policy permits, processes cancellation via `order_service.cancel_order()`. Generates an LLM-based response reflecting the outcome.
+    -   Output: Updates `ChatState` with `response`, `policy_decision`, `order_data`, and `requires_human_handoff` status.
 
-    *   **Node 2b: Order Tracking Handling (`TrackingAgent`)**
-        -   Triggered for `order_tracking` intent.
-        -   Action: Verifies presence of `order_id` (prompts if missing). Evaluates tracking eligibility using `policy_engine.evaluate_tracking()`. If permitted, fetches tracking details via `order_service.get_tracking_info()`. Generates an LLM-based response with tracking information or an explanation if unavailable.
-        -   Output: Updates `ChatState` with `response` and `policy_decision`.
+*   **Node 2b: Order Tracking Handling (`TrackingAgent`)**
+    -   Triggered for `order_tracking` intent.
+    -   Action: Verifies presence of `order_id` (prompts if missing). Evaluates tracking eligibility using `policy_engine.evaluate_tracking()`. If permitted, fetches tracking details via `order_service.get_tracking_info()`. Generates an LLM-based response with tracking information or an explanation if unavailable.
+    -   Output: Updates `ChatState` with `response` and `policy_decision`.
 
-    *   **Node 2c: General Inquiry Handling**
-        -   Triggered for `general_inquiry` or `unknown` intents.
-        -   Action: Leverages an LLM to provide a helpful response. May consult `policy_engine.get_policy_explanation()` for policy-related questions.
-        -   Output: Updates `ChatState` with `response`.
+*   **Node 2c: General Inquiry Handling**
+    -   Triggered for `general_inquiry` or `unknown` intents.
+    -   Action: Leverages an LLM to provide a helpful response. May consult `policy_engine.get_policy_explanation()` for policy-related questions.
+    -   Output: Updates `ChatState` with `response`.
 
-    *   **Node 3: Final Response Formatting**
-        -   Ensures the `ChatState.messages` (conversation history) is updated with the latest user message and AI response.
-        -   The final `response` and other relevant fields from `ChatState` are returned to the FastAPI layer.
+*   **Node 3: Final Response Formatting**
+    -   Ensures the `ChatState.messages` (conversation history) is updated with the latest user message and AI response.
+    -   The final `response` and other relevant fields from `ChatState` are returned to the FastAPI layer.
 
-    **3.2.4. `PolicyEngine` (`chatbot/policy_engine.py`)**
-    -   Encapsulates all business rules.
-    -   `OrderStatus` (Enum) and `PolicyDecision` (Pydantic model) define clear states and outcomes.
-    -   `evaluate_cancellation()`: Checks order date (10-day window), status (shipped orders require approval, delivered cannot be cancelled).
-    -   `evaluate_tracking()`: Checks validity of order ID for tracking.
-    -   `get_policy_explanation()`: Provides text for policies.
+**3.2.4. `PolicyEngine` (`chatbot/policy_engine.py`)**
+-   Encapsulates all business rules.
+-   `OrderStatus` (Enum) and `PolicyDecision` (Pydantic model) define clear states and outcomes.
+-   `evaluate_cancellation()`: Checks order date (10-day window), status (shipped orders require approval, delivered cannot be cancelled).
+-   `evaluate_tracking()`: Checks validity of order ID for tracking.
+-   `get_policy_explanation()`: Provides text for policies.
 
-    **3.2.5. `OrderService` (`chatbot/order_service.py`)**
-    -   A mock service simulating an external order management system.
-    -   `Order` and `TrackingInfo` (Pydantic models) define data structures.
-    -   Generates sample orders with varying dates and statuses to facilitate testing of policy adherence.
-    -   Provides methods: `get_order()`, `cancel_order()`, `get_tracking_info()`, `list_all_orders()`.
+**3.2.5. `OrderService` (`chatbot/order_service.py`)**
+-   A mock service simulating an external order management system.
+-   `Order` and `TrackingInfo` (Pydantic models) define data structures.
+-   Generates sample orders with varying dates and statuses to facilitate testing of policy adherence.
+-   Provides methods: `get_order()`, `cancel_order()`, `get_tracking_info()`, `list_all_orders()`.
 
 **3.3. LLM Integration (LangChain)**
 

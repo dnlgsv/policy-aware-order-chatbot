@@ -7,7 +7,7 @@ This project implements a generative chatbot that uses a Large Language Model (L
 
 ## Features
 
--   **Generative Chatbot**: Utilizes an LLM (via Instructor, LangChain and LangGraph) for natural and context-aware conversations.
+-   **Generative Chatbot**: Utilizes an LLM (via Pydantic, LangChain and LangGraph) for natural and context-aware conversations.
 -   **Policy Enforcement**: Integrates a `PolicyEngine` to ensure all actions comply with defined business rules (e.g., order cancellation window).
 -   **API Integration**: Connects to a mock `OrderService` to fetch order details, track shipments, and process cancellations.
 -   **Modular Design**: Built with FastAPI for the API layer, Pydantic for data validation, and a clear separation of concerns between agents, services, and policy logic.
@@ -32,13 +32,13 @@ This project implements a generative chatbot that uses a Large Language Model (L
 ├── __pycache__/
 ├── .python-version
 ├── analysis.ipynb          # Jupyter notebook for deeper analysis
-├── Report.md               # Report on evaluation results and insights
+├── COMPLETION_REPORT.md               # Report on evaluation results and insights
 ├── demo.py                 # Interactive demo script
 ├── evaluation.py           # Chatbot evaluation framework
 ├── main.py                 # FastAPI application
 ├── pyproject.toml          # Project metadata and dependencies for uv
 ├── README.md               # This file
-├── Solution_Design.md      # Detailed explanation of the solution architecture( maybe should be merged into Report.md?)
+├── SOLUTION_DESIGN.md      # Detailed explanation of the solution architecture( maybe should be merged into Report.md?)
 ├── streamlit_app.py        # Streamlit web UI for easy interaction
 ├── test_chatbot.py         # Unit/integration tests for the chatbot
 ├── test_system.py          # System tests
@@ -98,6 +98,7 @@ graph TD;
     uv run uvicorn main:app --reload --port 8000
     ```
     The API will be accessible at `http://localhost:8000`.
+    You might need to open a new terminal session to continue.
 
 2.  **Run the Interactive Demo (Optional):**
     ```bash
@@ -171,7 +172,6 @@ To assess the chatbot's performance:
 -   **Python 3.12+**
 -   **FastAPI**: For building the web API.
 -   **Pydantic**: For data validation and settings management.
--   **Instructor**: For Structured LLM Outputs.
 -   **LangChain**: LLM framework for building context-aware applications.
 -   **LangGraph**: For creating agent applications.
 -   **OpenAI GPT models**: (e.g., `GPT-4.1 mini`) For NLU, response generation, and LLM-as-a-judge evaluation.
